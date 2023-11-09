@@ -190,14 +190,15 @@ static const float kExposureDurationPower = 5.f; // Higher numbers will give the
                     [self.session beginConfiguration];
                     [self.session addOutput:movieFileOutput];
                     self.session.sessionPreset = AVCaptureSessionPreset3840x2160;
-                    AVCaptureConnection *connection = [movieFileOutput connectionWithMediaType:AVMediaTypeVideo];
-                    connection.preferredVideoStabilizationMode = AVCaptureVideoStabilizationModeAuto;
+                    self.videoCaptureConnection = [movieFileOutput connectionWithMediaType:AVMediaTypeVideo];
+                    self.videoCaptureConnection.preferredVideoStabilizationMode = AVCaptureVideoStabilizationModeAuto;
                     
-                    AVCaptureDeviceRotationCoordinator * rotation_coord = [[AVCaptureDeviceRotationCoordinator alloc] initWithDevice:self->_videoDevice previewLayer:((AVCaptureVideoPreviewLayer *)self.previewView.layer)];
-                    connection.videoRotationAngle = rotation_coord.videoRotationAngleForHorizonLevelPreview;
-                    
-                    self.videoDeviceRotationCoordinator = rotation_coord;
-                    self.videoCaptureConnection = connection;
+                    self.videoDeviceRotationCoordinator = [[AVCaptureDeviceRotationCoordinator alloc] initWithDevice:self->_videoDevice previewLayer:((AVCaptureVideoPreviewLayer *)self.previewView.layer)];
+                    self.videoCaptureConnection.videoRotationAngle = self.videoDeviceRotationCoordinator.videoRotationAngleForHorizonLevelPreview;
+                   
+                    dispatch_async( self.sessionQueue, ^{
+                        [self configureSession];
+                    } );
                     
                     [self.session commitConfiguration];
                 });
@@ -233,10 +234,6 @@ static const float kExposureDurationPower = 5.f; // Higher numbers will give the
             break;
         }
     }
-    
-    dispatch_async( self.sessionQueue, ^{
-        [self configureSession];
-    } );
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -303,7 +300,6 @@ static const float kExposureDurationPower = 5.f; // Higher numbers will give the
     UIDeviceOrientation deviceOrientation = [UIDevice currentDevice].orientation;
     
     if ( UIDeviceOrientationIsPortrait( deviceOrientation ) || UIDeviceOrientationIsLandscape( deviceOrientation ) ) {
-//        AVCaptureDeviceRotationCoordinator * rotation_coord = [[AVCaptureDeviceRotationCoordinator alloc] initWithDevice:_videoDevice previewLayer:(AVCaptureVideoPreviewLayer *)self.previewView.layer];
         ((AVCaptureVideoPreviewLayer *)self.previewView.layer).connection.videoRotationAngle = self.videoDeviceRotationCoordinator.videoRotationAngleForHorizonLevelPreview;
     }
 }
@@ -557,16 +553,18 @@ static const float kExposureDurationPower = 5.f; // Higher numbers will give the
             [self.videoDevice unlockForConfiguration];
         }
         
+        [self configureCameraForHighestFrameRate:self.videoDevice];
+        
         dispatch_async( dispatch_get_main_queue(), ^{
             UIDeviceOrientation deviceOrientation = [UIDevice currentDevice].orientation;
             if ( UIDeviceOrientationIsPortrait( deviceOrientation ) || UIDeviceOrientationIsLandscape( deviceOrientation ) ) {
-                AVCaptureVideoPreviewLayer *previewLayer = (AVCaptureVideoPreviewLayer *)self.previewView.layer;
-                AVCaptureDeviceRotationCoordinator * rotation_coord = [[AVCaptureDeviceRotationCoordinator alloc] initWithDevice:self.videoDevice previewLayer:previewLayer];
-                ((AVCaptureVideoPreviewLayer *)self.previewView.layer).connection.videoRotationAngle = rotation_coord.videoRotationAngleForHorizonLevelCapture;
+//                AVCaptureVideoPreviewLayer *previewLayer = (AVCaptureVideoPreviewLayer *)self.previewView.layer;
+                self.videoDeviceRotationCoordinator = [[AVCaptureDeviceRotationCoordinator alloc] initWithDevice:self.videoDevice previewLayer:(AVCaptureVideoPreviewLayer *)self.previewView.layer];
+                ((AVCaptureVideoPreviewLayer *)self.previewView.layer).connection.videoRotationAngle = self.videoDeviceRotationCoordinator.videoRotationAngleForHorizonLevelPreview;
             }
         } );
         
-        //        [self configureCameraForHighestFrameRate:self.videoDevice];
+                
         
         
     }
@@ -959,9 +957,9 @@ static const float kExposureDurationPower = 5.f; // Higher numbers will give the
 
 - (IBAction)toggleMovieRecording:(UIButton *)sender
 {
-    AVCaptureVideoPreviewLayer *previewLayer = (AVCaptureVideoPreviewLayer *)self.previewView.layer;
-    AVCaptureDeviceRotationCoordinator * rotation_coord = [[AVCaptureDeviceRotationCoordinator alloc] initWithDevice:_videoDevice previewLayer:previewLayer];
-    previewLayer.connection.videoRotationAngle = rotation_coord.videoRotationAngleForHorizonLevelPreview;
+//    AVCaptureVideoPreviewLayer *previewLayer = (AVCaptureVideoPreviewLayer *)self.previewView.layer;
+//    AVCaptureDeviceRotationCoordinator * rotation_coord = [[AVCaptureDeviceRotationCoordinator alloc] initWithDevice:_videoDevice previewLayer:previewLayer];
+//    previewLayer.connection.videoRotationAngle = rotation_coord.videoRotationAngleForHorizonLevelPreview;
     if ( ! self.movieFileOutput.isRecording ) {
         dispatch_async(dispatch_get_main_queue(), ^{
             [sender setAlpha:.15];
